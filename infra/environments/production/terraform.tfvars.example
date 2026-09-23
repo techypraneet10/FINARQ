@@ -1,0 +1,6 @@
+aws_region       = "us-east-1"
+bucket_suffix    = "production-corp-01"
+container_image  = "123456789012.dkr.ecr.us-east-1.amazonaws.com/financial-rag:v1.0.0"
+db_password      = "CHANGE_ME_PRODUCTION_SECURE_DB_PASSWORD"
+redis_auth_token = "CHANGE_ME_PRODUCTION_REDIS_AUTH_TOKEN_32_CHARS"
+certificate_arn  = "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"

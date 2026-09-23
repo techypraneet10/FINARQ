@@ -1,0 +1,164 @@
+name: Continuous Delivery & Deployment (CD)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ============================================================================
+  # Stage 1: Build & Publish Container to ECR with Immutable Git SHA Tag
+  # ============================================================================
+  build-and-publish-image:
+    name: Build & Publish Docker Image to ECR
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image_metadata.outputs.tag }}
+      image_uri: ${{ steps.image_metadata.outputs.uri }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Compute Semantic Image Tags
+        id: image_metadata
+        run: |
+          GIT_SHA="${{ github.sha }}"
+          SHORT_SHA="${GIT_SHA:0:7}"
+          RELEASE_TAG="${{ github.ref_name }}"
+          echo "tag=${RELEASE_TAG}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "uri=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/financial-rag:${RELEASE_TAG}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image_metadata.outputs.uri }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/financial-rag:${{ github.sha }}
+
+  # ============================================================================
+  # Stage 2: Deploy to Staging & Run Automated Smoke Tests
+  # ============================================================================
+  deploy-staging:
+    name: Deploy to Staging & Verify
+    runs-on: ubuntu-latest
+    needs: build-and-publish-image
+    environment: staging
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_STAGING_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run Database Migrations on Staging
+        run: |
+          aws ecs run-task \
+            --cluster staging-financial-rag-cluster \
+            --task-definition staging-financial-rag-migration \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.STAGING_SUBNETS }}],securityGroups=[${{ secrets.STAGING_MIGRATION_SG }}]}"
+
+      - name: Update Staging ECS Services
+        run: |
+          aws ecs update-service --cluster staging-financial-rag-cluster --service staging-financial-rag-api --force-new-deployment
+          aws ecs update-service --cluster staging-financial-rag-cluster --service staging-financial-rag-worker --force-new-deployment
+          aws ecs wait services-stable --cluster staging-financial-rag-cluster --services staging-financial-rag-api staging-financial-rag-worker
+
+      - name: Set up Python for Smoke Testing
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install Test Dependencies
+        run: |
+          pip install httpx pytest pydantic-settings
+
+      - name: Execute Deployment Smoke Test Suite
+        env:
+          DEPLOY_TARGET_URL: ${{ secrets.STAGING_ALB_URL }}
+        run: |
+          pytest tests/deployment/test_smoke.py -v
+
+  # ============================================================================
+  # Stage 3: Production Approval Gate & Zero-Downtime Deployment
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-publish-image, deploy-staging]
+    environment: production # Requires manual approval / reviewer sign-off in GitHub UI
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PRODUCTION_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run Database Migrations on Production
+        run: |
+          aws ecs run-task \
+            --cluster production-financial-rag-cluster \
+            --task-definition production-financial-rag-migration \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PRODUCTION_SUBNETS }}],securityGroups=[${{ secrets.PRODUCTION_MIGRATION_SG }}]}"
+
+      - name: Update Production ECS Services (Rolling Zero-Downtime)
+        run: |
+          aws ecs update-service --cluster production-financial-rag-cluster --service production-financial-rag-api --force-new-deployment
+          aws ecs update-service --cluster production-financial-rag-cluster --service production-financial-rag-worker --force-new-deployment
+          aws ecs wait services-stable --cluster production-financial-rag-cluster --services production-financial-rag-api production-financial-rag-worker
+
+      - name: Set up Python for Smoke Testing
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Test Dependencies
+        run: |
+          pip install httpx pytest pydantic-settings
+
+      - name: Execute Production Deployment Smoke Test Suite
+        env:
+          DEPLOY_TARGET_URL: ${{ secrets.PRODUCTION_ALB_URL }}
+        run: |
+          pytest tests/deployment/test_smoke.py -v

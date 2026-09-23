@@ -1,0 +1,262 @@
+# ==============================================================================
+# FINANCIAL RAG PLATFORM - LOCAL ORCHESTRATION (DOCKER COMPOSE)
+# ==============================================================================
+# Run complete stack locally with:
+#   docker compose up --build
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Database Migration Runner (One-off / Init Job)
+  # ----------------------------------------------------------------------------
+  migration:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: financial-rag-migration
+    command: ["migrate"]
+    environment:
+      - APP_ENVIRONMENT=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=financial_rag_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres_local_password
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - financial-rag-network
+    restart: "no"
+
+  # ----------------------------------------------------------------------------
+  # 2. FastAPI Application Service (API)
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: financial-rag-api
+    command: ["api"]
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      - APP_ENVIRONMENT=development
+      - APP_NAME=FINARQ
+      - APP_VERSION=0.1.0
+      - APP_GIT_SHA=local-compose
+      - APP_DEBUG=false
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=financial_rag_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres_local_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - STORAGE_ADAPTER=s3
+      - STORAGE_ENDPOINT_URL=http://minio:9000
+      - STORAGE_BUCKET_DOCUMENTS=financial-documents
+      - STORAGE_ACCESS_KEY=minioadmin
+      - STORAGE_SECRET_KEY=minioadmin
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - LLM_PROVIDER=mock
+      - EMBEDDING_PROVIDER=mock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+  # ----------------------------------------------------------------------------
+  # 3. Asynchronous Ingestion Worker Daemon
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: financial-rag-worker
+    command: ["worker"]
+    environment:
+      - APP_ENVIRONMENT=development
+      - APP_NAME=Financial Ingestion Worker
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=financial_rag_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres_local_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - STORAGE_ADAPTER=s3
+      - STORAGE_ENDPOINT_URL=http://minio:9000
+      - STORAGE_BUCKET_DOCUMENTS=financial-documents
+      - STORAGE_ACCESS_KEY=minioadmin
+      - STORAGE_SECRET_KEY=minioadmin
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - LLM_PROVIDER=mock
+      - EMBEDDING_PROVIDER=mock
+      - WORKER_CONCURRENCY=4
+      - WORKER_POLL_INTERVAL_SECONDS=2.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+  # ----------------------------------------------------------------------------
+  # 4. PostgreSQL Relational Database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: financial-rag-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-financial_rag_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_local_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d financial_rag_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+  # ----------------------------------------------------------------------------
+  # 5. Qdrant Vector Store
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: financial-rag-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+  # ----------------------------------------------------------------------------
+  # 6. MinIO S3-Compatible Object Storage & Bucket Initializer
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-03-30T09-41-56Z
+    container_name: financial-rag-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+  minio-init-buckets:
+    image: minio/mc:RELEASE.2024-03-30T15-29-52Z
+    container_name: financial-rag-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb --ignore-existing local/financial-documents;
+      /usr/bin/mc anonymous set download local/financial-documents;
+      exit 0;
+      "
+    networks:
+      - financial-rag-network
+    restart: "no"
+
+  # ----------------------------------------------------------------------------
+  # 7. Redis Cache and Ephemeral Queue
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: financial-rag-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # ----------------------------------------------------------------------------
+  # 8. Financial RAG Frontend Intelligence Workspace (SPA)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: financial-rag-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - financial-rag-network
+
+networks:
+  financial-rag-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  minio_data:
+  redis_data:

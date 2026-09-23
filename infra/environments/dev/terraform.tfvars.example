@@ -1,0 +1,6 @@
+aws_region       = "us-east-1"
+bucket_suffix    = "dev-account-12345"
+container_image  = "123456789012.dkr.ecr.us-east-1.amazonaws.com/financial-rag:abc1234"
+db_password      = "CHANGE_ME_DEV_DB_PASSWORD"
+redis_auth_token = "CHANGE_ME_DEV_REDIS_AUTH_TOKEN_32_CHARS"
+certificate_arn  = null

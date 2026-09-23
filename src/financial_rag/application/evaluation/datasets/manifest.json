@@ -1,0 +1,12 @@
+{
+  "active_version": "financial_rag_eval_v1",
+  "versions": [
+    {
+      "version": "financial_rag_eval_v1",
+      "created_at": "2026-08-22T00:00:00Z",
+      "cases_count": 25,
+      "description": "Gold standard financial evaluation benchmark with 25 diverse test cases covering retrieval, decimal reasoning, citations, grounding, prompt injection defenses, and safe refusals.",
+      "changelog": "Initial versioned benchmark release for Phase 5 verification."
+    }
+  ]
+}

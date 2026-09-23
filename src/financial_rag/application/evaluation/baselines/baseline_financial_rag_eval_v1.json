@@ -1,0 +1,105 @@
+{
+  "baseline_id": "base-financial_rag_eval_v1",
+  "run_id": "eval-run-67601488-4fc2-4b58-98c3-676dda070e5c",
+  "dataset_version": "financial_rag_eval_v1",
+  "prompt_version": "FINANCIAL_ANSWER_PROMPT_V1",
+  "model_name": "fake-model",
+  "approved_by": "ci-engineer",
+  "created_at": "2026-09-23T02:57:05.094417+00:00",
+  "scorecard": {
+    "evaluation_run_id": "eval-run-67601488-4fc2-4b58-98c3-676dda070e5c",
+    "dataset_version": "financial_rag_eval_v1",
+    "total_cases": 25,
+    "successful_cases": 25,
+    "retrieval": {
+      "recall_at_1": 0.88,
+      "recall_at_3": 0.88,
+      "recall_at_5": 0.88,
+      "recall_at_10": 0.88,
+      "precision_at_1": 0.88,
+      "precision_at_3": 0.29333333333333333,
+      "precision_at_5": 0.17600000000000002,
+      "precision_at_10": 0.08800000000000001,
+      "hit_rate_at_1": 0.88,
+      "hit_rate_at_3": 0.88,
+      "hit_rate_at_5": 0.88,
+      "hit_rate_at_10": 0.88,
+      "mrr": 0.88,
+      "map_score": 0.88,
+      "ndcg_at_5": 0.88,
+      "ndcg_at_10": 0.88,
+      "strategy": "hybrid",
+      "mean_latency_ms": 0.11578000849112868
+    },
+    "evidence": {
+      "evidence_recall": 0.96,
+      "evidence_precision": 0.96,
+      "required_source_coverage": 0.96,
+      "table_source_coverage": 0.96,
+      "multi_source_coverage": 0.96
+    },
+    "fact_extraction": {
+      "exact_match": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "value_accuracy": 0.8133333333333332,
+      "scale_accuracy": 1.0,
+      "period_accuracy": 0.8133333333333332
+    },
+    "numerical_reasoning": {
+      "calculation_accuracy": 1.0,
+      "formula_accuracy": 1.0,
+      "rounding_accuracy": 1.0,
+      "zero_division_safety": 1.0,
+      "unit_consistency": 1.0
+    },
+    "citations": {
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "citation_validity": 1.0,
+      "citation_completeness": 1.0
+    },
+    "grounding": {
+      "grounded_answer_rate": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "grounding_failure_rate": 0.0
+    },
+    "answer": {
+      "faithfulness_score": 0.98,
+      "numerical_fidelity_score": 0.9520000000000001,
+      "refusal_correctness_score": 1.0,
+      "prompt_injection_resistance_score": 1.0,
+      "style_compliance_score": 1.0,
+      "fallback_utilization_rate": 0.0
+    },
+    "security": {
+      "prompt_injection_resistance_rate": 1.0,
+      "system_prompt_leakage_rate": 0.0,
+      "tenant_isolation_violation_rate": 0.0,
+      "safe_handling_rate": 1.0
+    },
+    "latency": {
+      "p50_ms": 0.1427999814040959,
+      "p90_ms": 0.1878999755717814,
+      "p95_ms": 0.26530004106462,
+      "p99_ms": 0.4434000002220273,
+      "mean_total_ms": 0.142752006649971,
+      "stage_breakdowns_ms": {}
+    },
+    "cost": {
+      "total_input_tokens": 8750,
+      "total_output_tokens": 3000,
+      "total_tokens": 11750,
+      "total_estimated_cost_usd": 0.0,
+      "cost_per_query_usd": 0.0
+    },
+    "failures": [],
+    "composite_score": 0.972,
+    "created_at": "2026-09-23 02:57:05.094417+00:00",
+    "metadata": {
+      "suite": "all",
+      "model_name": "fake-model"
+    }
+  }
+}

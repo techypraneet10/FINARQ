@@ -1,0 +1,281 @@
+{
+  "benchmark_version": "1.0.0",
+  "description": "Production Financial RAG Platform Golden QA Benchmark Dataset covering 11 Financial QA Scenarios and Acceptance Tests",
+  "test_cases": [
+    {
+      "id": "QA-001",
+      "category": "factual_lookup",
+      "query": "What was Apple's total net sales in fiscal year 2024?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [],
+      "expected_citations": ["C1"],
+      "expected_keywords": ["$391,035", "million", "[C1]"]
+    },
+    {
+      "id": "QA-002",
+      "category": "arithmetic_calculation",
+      "query": "What was the operating income for Apple in FY2024 based on total net sales and operating expenses?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total operating expenses",
+          "period": "FY2024",
+          "raw_value": "267,800",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [
+        {
+          "operation": "subtract",
+          "expected_result": "123235.00",
+          "expected_formatted": "$123,235 million"
+        }
+      ],
+      "expected_citations": ["C1", "C2"],
+      "expected_keywords": ["$123,235", "operating income", "[C1]", "[C2]"]
+    },
+    {
+      "id": "QA-003",
+      "category": "percentage_change",
+      "query": "What was Apple's revenue growth from FY2023 to FY2024?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Total net sales",
+          "period": "FY2023",
+          "raw_value": "383,285",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [
+        {
+          "operation": "growth",
+          "expected_result": "2.02",
+          "expected_formatted": "+2.02%"
+        }
+      ],
+      "expected_citations": ["C1", "C2"],
+      "expected_keywords": ["+2.02%", "$383,285", "$391,035", "[C1]", "[C2]"]
+    },
+    {
+      "id": "QA-004",
+      "category": "margin_calculation",
+      "query": "What was Apple's gross margin percentage in FY2024?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Gross margin",
+          "period": "FY2024",
+          "raw_value": "180,683",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [
+        {
+          "operation": "ratio",
+          "expected_result": "46.21",
+          "expected_formatted": "46.21%"
+        }
+      ],
+      "expected_citations": ["C1"],
+      "expected_keywords": ["46.21%", "gross margin", "[C1]"]
+    },
+    {
+      "id": "QA-005",
+      "category": "yoy_comparison",
+      "query": "How did Net Income in FY2024 compare to FY2023?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Net income",
+          "period": "FY2023",
+          "raw_value": "96,995",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Net income",
+          "period": "FY2024",
+          "raw_value": "93,736",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [
+        {
+          "operation": "growth",
+          "expected_result": "-3.36",
+          "expected_formatted": "-3.36%"
+        }
+      ],
+      "expected_citations": ["C1", "C2"],
+      "expected_keywords": ["$96,995", "$93,736", "-3.36%", "[C1]", "[C2]"]
+    },
+    {
+      "id": "QA-006",
+      "category": "multi_period_comparison",
+      "query": "Provide a 3-year revenue comparison for Apple across 2022, 2023, and 2024.",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Total net sales",
+          "period": "FY2022",
+          "raw_value": "394,328",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total net sales",
+          "period": "FY2023",
+          "raw_value": "383,285",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [],
+      "expected_citations": ["C1", "C2", "C3"],
+      "expected_keywords": ["$394,328", "$383,285", "$391,035", "[C1]", "[C2]", "[C3]"]
+    },
+    {
+      "id": "QA-007",
+      "category": "table_based_answer",
+      "query": "According to the Consolidated Statements of Operations table, what was the provision for income taxes in 2024?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Provision for income taxes",
+          "period": "FY2024",
+          "raw_value": "29,500",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [],
+      "expected_citations": ["C1"],
+      "expected_keywords": ["$29,500", "provision for income taxes", "[C1]"]
+    },
+    {
+      "id": "QA-008",
+      "category": "narrative_answer",
+      "query": "What are the primary liquidity risk factors disclosed in the MD&A section?",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [],
+      "expected_calculations": [],
+      "expected_citations": ["C1"],
+      "expected_keywords": ["liquidity", "commercial paper", "capital resources", "[C1]"]
+    },
+    {
+      "id": "QA-009",
+      "category": "cross_document_reasoning",
+      "query": "Compare Apple's 2023 revenue from the 2023 10-K with 2024 revenue from the 2024 10-K.",
+      "ticker": "AAPL",
+      "expected_status": "completed",
+      "expected_grounding": "grounded",
+      "expected_facts": [
+        {
+          "metric": "Total net sales",
+          "period": "FY2023",
+          "raw_value": "383,285",
+          "currency": "USD",
+          "scale": "millions"
+        },
+        {
+          "metric": "Total net sales",
+          "period": "FY2024",
+          "raw_value": "391,035",
+          "currency": "USD",
+          "scale": "millions"
+        }
+      ],
+      "expected_calculations": [
+        {
+          "operation": "growth",
+          "expected_result": "2.02",
+          "expected_formatted": "+2.02%"
+        }
+      ],
+      "expected_citations": ["C1", "C2"],
+      "expected_keywords": ["+2.02%", "2023 10-K", "2024 10-K", "[C1]", "[C2]"]
+    },
+    {
+      "id": "QA-010",
+      "category": "insufficient_evidence",
+      "query": "What was Apple's projected revenue for fiscal year 2030?",
+      "ticker": "AAPL",
+      "expected_status": "insufficient_evidence",
+      "expected_grounding": "ungrounded",
+      "expected_facts": [],
+      "expected_calculations": [],
+      "expected_citations": [],
+      "expected_keywords": ["Insufficient", "FY2030", "not available"]
+    },
+    {
+      "id": "QA-011",
+      "category": "conflicting_evidence",
+      "query": "What was the R&D expenditure for FY2024 reported in the release vs filing?",
+      "ticker": "AAPL",
+      "expected_status": "conflicting_evidence",
+      "expected_grounding": "partially_grounded",
+      "expected_facts": [],
+      "expected_calculations": [],
+      "expected_citations": [],
+      "expected_keywords": ["Conflicting", "discrepancy"]
+    }
+  ]
+}

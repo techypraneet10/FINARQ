@@ -1,0 +1,131 @@
+# Prometheus Alerting & Recording Rules for Financial RAG Platform
+groups:
+  - name: financial_rag_slo_alerts
+    rules:
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) * 100 > 1.0
+        for: 2m
+        labels:
+          severity: critical
+          tier: api
+        annotations:
+          summary: "API 5xx error rate exceeds 1.0% SLO"
+          description: "Current 5xx error rate is {{ $value | printf \"%.2f\" }}% over the last 5 minutes."
+
+      - alert: HighAPILatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          tier: api
+        annotations:
+          summary: "API P95 latency exceeds 2.0s target"
+          description: "P95 latency is {{ $value | printf \"%.2f\" }}s over 5m."
+
+      - alert: HighAPILatencyP99
+        expr: |
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 5.0
+        for: 3m
+        labels:
+          severity: critical
+          tier: api
+        annotations:
+          summary: "API P99 latency exceeds 5.0s critical limit"
+          description: "P99 latency is {{ $value | printf \"%.2f\" }}s over 3m."
+
+  - name: financial_rag_dependency_alerts
+    rules:
+      - alert: CriticalDependencyUnhealthy
+        expr: financial_rag_dependency_health_status{critical="true"} == 0
+        for: 1m
+        labels:
+          severity: page
+          tier: infrastructure
+        annotations:
+          summary: "Critical dependency is unhealthy: {{ $labels.dependency }}"
+          description: "Dependency {{ $labels.dependency }} failed continuous readiness health check."
+
+      - alert: DegradedDependencyActive
+        expr: financial_rag_dependency_health_status{critical="false"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          tier: infrastructure
+        annotations:
+          summary: "Non-critical dependency degraded: {{ $labels.dependency }}"
+          description: "Dependency {{ $labels.dependency }} is currently offline. System operating on fallback."
+
+  - name: financial_rag_resilience_alerts
+    rules:
+      - alert: CircuitBreakerTrippedOpen
+        expr: financial_rag_circuit_breaker_state == 2
+        for: 30s
+        labels:
+          severity: critical
+          tier: resilience
+        annotations:
+          summary: "Circuit breaker TRIPPED to OPEN for {{ $labels.component }}"
+          description: "Circuit breaker for component {{ $labels.component }} has opened due to repeated execution failures."
+
+      - alert: HighRetryExhaustionRate
+        expr: sum(rate(financial_rag_retries_total{status="exhausted"}[5m])) by (component) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          tier: resilience
+        annotations:
+          summary: "High retry exhaustion rate for {{ $labels.component }}"
+          description: "Component {{ $labels.component }} is exhausting all retry backoffs."
+
+      - alert: ElevatedFallbackRate
+        expr: sum(rate(financial_rag_fallbacks_total[5m])) by (component) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          tier: pipeline
+        annotations:
+          summary: "Elevated fallback activation on {{ $labels.component }}"
+          description: "Component {{ $labels.component }} fallback activation rate is {{ $value }} ops/sec."
+
+  - name: financial_rag_pipeline_alerts
+    rules:
+      - alert: IngestionStageFailureSpike
+        expr: sum(rate(financial_rag_ingestion_stage_duration_ms_count{status="failure"}[10m])) by (stage) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+          tier: ingestion
+        annotations:
+          summary: "Ingestion pipeline stage failing: {{ $labels.stage }}"
+          description: "Stage {{ $labels.stage }} failure rate elevated."
+
+      - alert: LLMValidationRejectionSpike
+        expr: |
+          (
+            sum(rate(financial_rag_validation_checks_total{status="invalid"}[5m]))
+            /
+            sum(rate(financial_rag_validation_checks_total[5m]))
+          ) * 100 > 15.0
+        for: 5m
+        labels:
+          severity: warning
+          tier: llm
+        annotations:
+          summary: "LLM synthesis validation rejection rate > 15%"
+          description: "Over 15% of LLM outputs are failing verification rules and falling back to deterministic answers."
+
+      - alert: HighLLMCostRate
+        expr: sum(rate(financial_rag_llm_cost_usd_total[1h])) * 3600 > 50.0
+        for: 15m
+        labels:
+          severity: warning
+          tier: cost
+        annotations:
+          summary: "LLM spend rate exceeds $50.00/hour"
+          description: "Projected hourly LLM API spend is ${{ $value | printf \"%.2f\" }}."
